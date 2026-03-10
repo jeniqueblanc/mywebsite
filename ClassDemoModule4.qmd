@@ -1,0 +1,9 @@
+---
+title: 'Class Demo 4'
+subtitle: "RMI 4226 Risk and Insurance Data Analytics -- Spring 2026"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: left
+---

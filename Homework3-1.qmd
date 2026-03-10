@@ -1,0 +1,218 @@
+---
+title: 'Homework 3'
+subtitle: "RMI 4226 Risk and Insurance Data Analytics -- Fall 2025"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: left
+---
+
+**Objective:** This assignment aims to enhance your skills in data manipulation, specifically in reshaping data between long and wide formats, and in creating effective visualizations using `ggplot2`. By completing this exercise, you will learn to prepare data to answer specific questions and use appropriate graphs to communicate your findings.
+
+**Dataset:** We will be working with a dataset containing information about insurance company assets stored in "naic_asset.rta". This dataset includes the following variables: `COCODE` (company code), `COMPANY_NAME`, `COMPANY_TYPE_DESC` (company type), `CURRENT_YEAR` (asset value), `YEAR` (reporting year), and `LINE` (line of business). The `LINE` variable includes "Bonds", "CashHandDeposit", "Stocks_Com", and "Total".
+
+**Data Preparation and Reshaping:**
+
+1.  **Data Loading and Filtering:**
+    -   Load the `naic_asset.rta` dataset.
+    -   Select the following columns: `COCODE`, `COMPANY_NAME`, `COMPANY_TYPE_DESC`,
+    z`CURRENT_YEAR`, `YEAR`, and `LINE`.
+    -   Filter the data to retain only the rows where the `LINE` variable is either "Bonds", "CashHandDeposit", "Stocks_Com", or "Total".
+    -   Store the resulting data frame as `longdata`.
+    
+```{r}
+rm(list = ls())
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+load("naic_asset.rta")
+temp <- MyData |> select(COCODE, COMPANY_NAME, COMPANY_TYPE_DESC, CURRENT_YEAR, YEAR, LINE) 
+longdata <- temp |>
+  filter(LINE%in%c("Bonds", "CashHandDeposit","Stocks_Com","Total"))
+
+widedata <- longdata |>
+  pivot_wider(
+    names_from  = LINE,
+    values_from = CURRENT_YEAR
+  ) |>
+  filter(!is.na(Total), Total > 0)
+
+widedata <- widedata |>
+  mutate(
+    bondRatio  = Bonds / Total,
+    stockRatio = Stocks_Com / Total,
+    YEAR = factor(YEAR),
+    COMPANY_TYPE_DESC = factor(COMPANY_TYPE_DESC)
+  )
+
+longdata <- widedata |>
+  pivot_longer(
+    cols = -c(COCODE, YEAR, COMPANY_NAME, COMPANY_TYPE_DESC),
+    names_to  = "name",
+    values_to = "value"
+  )
+
+longdata |>
+  filter(name == "Total") |>
+  ggplot(aes(x = YEAR, y = value)) +
+  geom_point(alpha = 0.5) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Total Assets Over Time",
+       x = "Year", y = "Total Assets")
+
+longdata |>
+  filter(name == "Total") |>
+  ggplot(aes(x = YEAR, y = value, color = COMPANY_TYPE_DESC)) +
+  geom_point(alpha = 0.5) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  ) +
+  labs(title = "Total Assets Over Time by Company Type",
+       x = "Year", y = "Total Assets", color = "Company Type")
+
+longdata |>
+  filter(name == "Total") |>
+  ggplot(aes(x = YEAR, y = value)) +
+  geom_boxplot(outlier.alpha = 0.3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribution of Total Assets by Year",
+       x = "Year", y = "Total Assets")
+
+longdata |>
+  filter(name == "Total") |>
+  ggplot(aes(x = YEAR, y = value)) +
+  geom_boxplot(outlier.alpha = 0.3) +
+  ylim(0, 1e8) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribution of Total Assets by Year (Zoomed)",
+       x = "Year", y = "Total Assets (0 to 1e8)")
+
+longdata |>
+  filter(name == "bondRatio") |>
+  ggplot(aes(x = YEAR, y = value, fill = COMPANY_TYPE_DESC)) +
+  geom_boxplot(outlier.alpha = 0.3) +
+  ylim(0, 1) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  ) +
+  labs(title = "Bond Ratio Distribution by Year and Company Type",
+       x = "Year", y = "Bond Ratio", fill = "Company Type")
+
+
+longdata |>
+  filter(name %in% c("bondRatio", "stockRatio")) |>
+  ggplot(aes(x = YEAR, y = value)) +
+  geom_boxplot(outlier.alpha = 0.3) +
+  ylim(0, 1) +
+  facet_grid(name ~ COMPANY_TYPE_DESC) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  ) +
+  labs(title = "Bond vs Stock Ratio Distributions by Year and Company Type",
+       x = "Year", y = "Ratio")
+
+avg_ratios <- longdata |>
+  filter(name %in% c("bondRatio", "stockRatio")) |>
+  pivot_wider(names_from = name, values_from = value) |>
+  group_by(YEAR, COMPANY_TYPE_DESC) |>
+  summarise(
+    bondRatio  = mean(bondRatio, na.rm = TRUE),
+    stockRatio = mean(stockRatio, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_longer(
+    cols = c(bondRatio, stockRatio),
+    names_to = "name",
+    values_to = "value"
+  )
+
+avg_ratios |>
+  ggplot(aes(x = YEAR, y = value, fill = name)) +
+  geom_col(position = "stack") +
+  facet_wrap(~ COMPANY_TYPE_DESC) +
+  ylim(0, 1) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  ) +
+  labs(
+    title = "Average Bond and Stock Ratios Over Time (Stacked)",
+    x = "Year",
+    y = "Average Ratio",
+    fill = "Ratio Type"
+  )
+
+#Total assets show a clear upward trend over time for both mutual and stock companies, with increasing variability in later years. A small number of firms hold significantly larger asset levels, contributing to the wider distributions observed in the boxplots.Bond ratios are consistently higher than stock ratios across both company types, indicating a stronger allocation toward bonds. Mutual companies tend to maintain slightly higher bond allocations, while stock companies show somewhat more variation in stock exposure. Overall, insurers appear to follow a relatively conservative investment strategy dominated by bonds.
+
+```
+    
+2.  **Pivoting to Wide Format:**
+    -   Transform the `longdata` from its current long format to a wide format.
+    -   Use the unique values in the `LINE` column ("Bonds", "CashHandDeposit", "Stocks_Com", "Total") as the names of the new columns (i.e., "Bonds", "CashHandDeposit", "Stocks_Com", and "Total").
+    -   Populate these new columns with the values from the `CURRENT_YEAR` column.
+    -   Retain all the other columns `COCODE`, `COMPANY_NAME`, `COMPANY_TYPE_DESC`, and `YEAR`.
+    -   Make sure all observations have a positive (non-zero) total assets (`Total`).
+    -   Store the resulting data frame as `widedata`.
+3.  **Creating Ratio Variables and Converting Data Types:**
+    -   Within `widedata`, calculate two new variables:
+        -   `bondRatio`: Compute this by dividing the values in the `Bonds` column by the corresponding values in the `Total` column.
+        -   `stockRatio`: Compute this by dividing the values in the `Stocks_Com` column by the corresponding values in the `Total` column.
+    -   Convert both the `YEAR` and `COMPANY_TYPE_DESC` columns into factors.
+4.  **Pivoting back to Long Format:**
+    -   Transform the `widedata` back to a long format.
+    -   Combine all columns except `COCODE`, `YEAR`, `COMPANY_NAME`, and `COMPANY_TYPE_DESC` into two columns: a `name` column and a `value` column.
+    -   The `name` column should contain the original column names that were transformed (`Bonds`, `CashHandDeposit`, `Stocks_Com`, `Total`, `bondRatio`, `stockRatio`), and the `value` column should contain the corresponding values.
+    -   Store this reshaped data as `longdata`.
+
+**Data Visualization:**
+
+5.  **Visualizing Total Asset Trends Over Time:**
+    -   Create a point chart visualizing the trend of total assets (`value`) over the years (`YEAR`).
+    -   Filter the `longdata` to include only the rows where `name` is equal to "Total".
+    -   Tilt the x-axis labels by 45 degrees for better readability.
+6.  **Comparing Total Asset Trends by Company Type:**
+    -   Enhance the point chart from the previous step by adding color to differentiate the trend of total assets across different company types (`COMPANY_TYPE_DESC`).
+    -   Keep the filter for total assets (`name` equal to "Total").
+    -   Tilt the x-axis labels by 45 degrees and move the legend to the bottom of the plot for better readability.
+7.  **Analyzing Total Asset Distribution Over Time:**
+    -   Create a box plot to visualize the distribution of total assets (`value`) for each year (`YEAR`).
+    -   Filter the `longdata` to include only the rows where `name` is equal to "Total".
+    -   Tilt the x-axis labels by 45 degrees.
+8.  **Focusing on the Total Asset Distribution:**
+    -   Recreate the box plot from the previous step but this time add a `ylim()` function to zoom into the distribution, setting the y-axis limits to range from 0 to 10<sup>8</sup>.
+9.  **Analyzing Bond Ratio Distribution by Company Type:**
+    -   Create a box plot to show the distribution of the `bondRatio` for each year (`YEAR`), coloring the boxes based on `COMPANY_TYPE_DESC`.
+    -   Filter `longdata` to include only rows where the `name` variable is "bondRatio".
+    -   Set the y-axis limits from 0 to 1, and tilt x-axis labels by 45 degrees.
+    -   Move the legend to the bottom of the plot for better readability.
+10. **Comparing Bond and Stock Ratio Distributions by Company Type:**
+    -   Create a faceted box plot to compare the distribution of `bondRatio` and `stockRatio` over the years, across different company types.
+    -   Filter `longdata` to include only rows where the `name` variable is either "bondRatio" or "stockRatio".
+    -   Set the y-axis limits from 0 to 1. Tilt x-axis labels by 45 degrees.
+    -   Facet the plot by both the `name` column (to distinguish between bond ratio and stock ratio) and the `COMPANY_TYPE_DESC` column.
+    -   Move the legend to the bottom of the plot for better readability.
+11. **Visualizing Average Bond and Stock Ratios with Stacked Bars:**
+    -   Filter `longdata` to include only "bondRatio" and "stockRatio".
+    -   Transform the data into a wide format with `bondRatio` and `stockRatio` as separate columns
+    -   Group the data by `YEAR` and `COMPANY_TYPE_DESC` and calculate the mean of `bondRatio` and `stockRatio` for each group.
+    -   Transform the data back to long format, with the mean `bondRatio` and `stockRatio` values in a single `value` column, and the type of ratio in a `name` column.
+    -   Create a stacked bar chart showing the average `bondRatio` and `stockRatio` over time for each company type.
+    -   Use `YEAR` as the x-axis and the `value` as the y-axis.
+    -   Color the bars based on the `name` (bond ratio vs. stock ratio).
+    -   Facet the plot by `COMPANY_TYPE_DESC`.
+    -   Tilt x-axis labels by 45 degrees and position the legend at the bottom.
+    -   Set y-axis limits from 0 to 1.
+    -   Add an appropriate title and labels for the x and y axis.
+12. Briefly describe what you found going through these steps to visualize the data.
