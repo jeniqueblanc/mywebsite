@@ -2,7 +2,7 @@
 title: "Jenique Blanc"
 subtitle: "Data Scientist"
 # `profile.jpg` photo by Jan Tinneberg on https://unsplash.com
-image: profile.jpg
+image: profile picture .PNG
 about: # https://quarto.org/docs/websites/website-about.html
   template: jolla
   links:
@@ -11,15 +11,15 @@ about: # https://quarto.org/docs/websites/website-about.html
       href: https://github.com
     - icon: linkedin
       text: LinkedIn
-      href: https://linkedin.com
+      href: https://linkedin.com/in/jenique-blanc
 ---
 
-A little bit about me and my life.
+I’m a senior at the University of South Florida studying Econometrics and Finance, with a strong interest in investment analysis and risk management. I enjoy using data to solve real-world problems and am working toward a career in the financial industry.
 
 ## Education
 
-University of XYZ, City \| Location \| Sept 20XX - June 20XX
+University of South Florida, City\ Tampa| Location \ Florida| Aug 2022 - May 2026
 
 ## Experience
 
-Workplace \| Job title \| April 20XX - present
+Workplace \ Marshall Student Center | Job title \ Building Manager| Jan 2024 - present
